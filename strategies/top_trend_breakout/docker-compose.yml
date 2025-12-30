@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  strategy:
+    build:
+      context: ../../
+      dockerfile: strategies/top_trend_breakout/Dockerfile
+    image: top_trend_breakout
+    container_name: top_trend_breakout
+    environment:
+      - REDIS_HOST=redis
+      - STRATEGY_ID=TopTrendBreakOut
+      - SYMBOL=BTCUSDT
+      - BYBIT_TESTNET=false
+      - LOGS_DIR=/app/logs
+    volumes:
+      - ../../logs:/app/logs
+    networks:
+      - screener_global_net
+
+networks:
+  screener_global_net:
+    external: true
+    name: screener_global_net

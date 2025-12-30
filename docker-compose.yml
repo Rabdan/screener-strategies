@@ -1,0 +1,62 @@
+version: "3.8"
+
+services:
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+    networks:
+      - screener_global_net
+
+  api:
+    build:
+      context: .
+      dockerfile: services/Dockerfile.api
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_HOST=redis
+      - DB_PATH=/app/data/trades.db
+    volumes:
+      - ./data/logs:/app/logs
+      - ./data:/app/data
+    networks:
+      - screener_global_net
+    depends_on:
+      - redis
+
+  aggregate:
+    build:
+      context: .
+      dockerfile: services/Dockerfile.aggregate
+    command: python aggregate.py
+    environment:
+      - REDIS_HOST=redis
+      - DB_PATH=/app/data/trades.db
+    volumes:
+      - ./data/logs:/app/logs
+      - ./data:/app/data
+    networks:
+      - screener_global_net
+    depends_on:
+      - redis
+
+  web:
+    build:
+      context: ./web
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+      - VITE_WS_URL=ws://localhost:8000
+    networks:
+      - screener_global_net
+    depends_on:
+      - api
+
+networks:
+  screener_global_net:
+    name: screener_global_net
+    driver: bridge
