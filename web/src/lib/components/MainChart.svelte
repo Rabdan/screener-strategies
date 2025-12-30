@@ -114,6 +114,7 @@
                 let series: ISeriesApi<any>;
 
                 if (isHistogram) {
+                  console.log("id", id);
                   series = chart.addSeries(
                     HistogramSeries,
                     {
@@ -124,8 +125,8 @@
                     },
                     paneIndex,
                   );
-                  chart
-                    .priceScale(id)
+                  series
+                    .priceScale()
                     .applyOptions({ scaleMargins: { top: 0.7, bottom: 0 } });
                 } else {
                   series = chart.addSeries(
@@ -162,19 +163,17 @@
                   .filter((d) => d.value !== undefined && !isNaN(d.value));
 
                 series.setData(data as any);
-                /*
                 if (cfg.marker) {
-                  series.setMarkers(
+                  createSeriesMarkers(series).setMarkers(
                     data.map((d) => ({
                       time: d.time,
                       position: "inBar",
-                      color: cfg.color,
+                      color: cfg.color as string,
                       shape: "circle",
                       text: cfg.label,
                     })),
                   );
                 }
-                */
               },
             );
 
@@ -208,7 +207,9 @@
       }
 
       // Авто-масштаб после загрузки
-      chart.timeScale().fitContent();
+      chart.timeScale().applyOptions({
+        barSpacing: 10,
+      });
     }
 
     const state = await fetchInstrumentState(

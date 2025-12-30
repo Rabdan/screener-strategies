@@ -68,14 +68,14 @@ const DUMMY_STRATEGIES = [
                 "highex": { color: "blue", marker: "^", label: "High Ex" },
                 "lowex": { color: "orange", marker: "v", label: "Low Ex" },
             },
-            "Volume": {
+            "volume_pane": {
                 "volume": { color: "gray", linestyle: "histogram", label: "Volume" },
                 "volsma": { color: "red", linestyle: "-", label: "Vol SMA" },
             },
-            "NATR": {
+            "natr_pane": {
                 "natr": { color: "red", linestyle: "-", label: "NATR" },
             },
-            "stochRSI": {
+            "stochrsi_pane": {
                 "stochk": { color: "green", linestyle: "-", label: "Stoch K" },
                 "stochd": { color: "red", linestyle: "--", label: "Stoch D" },
                 "stochrsi_overbought": { value: 80, color: "rgba(0,0,0,0.5)", linestyle: ":", label: "Overbought" },
@@ -89,6 +89,7 @@ const DUMMY_STRATEGIES = [
         description: 'Контртрендовая стратегия, выявляющая условия перепроданности/перекупленности на основных ликвидных парах.',
         symbols: ['SOLUSDT', 'ARBUSDT'],
         indicators: {
+            "main": {},
             "stochRSI": {
                 "rsi": { color: "#6366f1", label: "RSI" },
                 "rsi_70": { value: 70, color: "rgba(239, 68, 68, 0.5)", linestyle: ":", label: "70" },
@@ -244,7 +245,10 @@ function generateDummyCandles() {
                 volsma: 40 + Math.random() * 20,
                 natr: 1 + Math.random(),
                 stochk: rsi,
-                stochd: rsi * 0.9 + 5
+                stochd: rsi * 0.9 + 5,
+                rsi: rsi,
+                ema50: sma * 1.2,
+                ema200: sma * 0.9 + close * 0.1,
             } as any
         });
         lastClose = close;

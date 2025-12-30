@@ -83,9 +83,7 @@
           </h3>
         </div>
 
-        <div
-          class="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm"
-        >
+        <div class="p-0">
           <h4 class="text-lg font-black text-gray-900 dark:text-white mb-2">
             {$activeStrategyDetail.name}
           </h4>
