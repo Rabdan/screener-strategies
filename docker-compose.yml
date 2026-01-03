@@ -15,7 +15,7 @@ services:
       context: .
       dockerfile: services/Dockerfile.api
     ports:
-      - "8000:8000"
+      - "6060:6060"
     environment:
       - REDIS_HOST=redis
       - DB_PATH=/app/data/trades.db
@@ -42,19 +42,18 @@ services:
       - screener_global_net
     depends_on:
       - redis
-
-  web:
-    build:
-      context: ./web
-    ports:
-      - "5173:5173"
-    environment:
-      - VITE_API_URL=http://localhost:8000
-      - VITE_WS_URL=ws://localhost:8000
-    networks:
-      - screener_global_net
-    depends_on:
-      - api
+  #web:
+  #  build:
+  #    context: ./web
+  #  ports:
+  #    - "5173:5173"
+  #  environment:
+  #    - VITE_API_URL=http://localhost:6060
+  #    - VITE_WS_URL=ws://localhost:6060
+  #  networks:
+  #    - screener_global_net
+  #  depends_on:
+  #    - api
 
 networks:
   screener_global_net:

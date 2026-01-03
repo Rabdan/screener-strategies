@@ -43,7 +43,7 @@ class StrategyMetadata(BaseModel):
     description: Optional[str] = None
     symbols: List[str] = []
     timeframes: List[str] = []
-    indicators_config: Dict[str, Any] = {}
+    indicators: Dict[str, Any] = {}
     custom_settings: Dict[str, Any] = {}
     is_active: bool = True
 
@@ -61,7 +61,7 @@ class CandleUpdateEvent(BaseEvent):
     low: float
     close: float
     volume: float
-    indicators: Dict[str, float] = {}  # Значения индикаторов для этой свечи
+    indicators: Dict[str, float|None] = {}  # Значения индикаторов для этой свечи
 
 
 """События стратегии (Prefix: StrategyEvent)"""
@@ -71,6 +71,12 @@ class StrategyLifecycleEvent(BaseEvent):
     """Событие управления жизненным циклом стратегии (старт/стоп)."""
     action: str # START, SHUTDOWN
     strategy_id: str
+
+
+class StrategyMetadataUpdateEvent(BaseEvent):
+    """Событие обновления метаданных стратегии (символы, индикаторы)."""
+    strategy_id: str
+    metadata: Dict[str, Any]
 
 
 class StrategySignalEvent(BaseEvent):

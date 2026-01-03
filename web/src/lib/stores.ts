@@ -62,24 +62,25 @@ const DUMMY_STRATEGIES = [
         name: 'Пробой тренда',
         description: 'Мониторинг установившихся трендов для поиска высоковероятных пробоев с подтверждением объема и импульса RSI.',
         symbols: ['BTCUSDT', 'ETHUSDT'],
+        timeframes: "5min",
         indicators: {
             "main": {
                 "st_trend": { color: "yellow", linestyle: "-", label: "ST Trend" },
                 "highex": { color: "blue", marker: "^", label: "High Ex" },
                 "lowex": { color: "orange", marker: "v", label: "Low Ex" },
             },
-            "volume_pane": {
-                "volume": { color: "gray", linestyle: "histogram", label: "Volume" },
-                "volsma": { color: "red", linestyle: "-", label: "Vol SMA" },
+            "volume": {
+                "volume": { color: "rgba(156, 163, 175, 0.4)", linestyle: "histogram", label: "Volume" },
+                "volume_sma": { color: "#ef4444", linestyle: "-", label: "Vol SMA" },
             },
-            "natr_pane": {
-                "natr": { color: "red", linestyle: "-", label: "NATR" },
+            "NATR": {
+                "natr": { color: "#10b981", linestyle: "-", label: "NATR" },
             },
-            "stochrsi_pane": {
-                "stochk": { color: "green", linestyle: "-", label: "Stoch K" },
-                "stochd": { color: "red", linestyle: "--", label: "Stoch D" },
-                "stochrsi_overbought": { value: 80, color: "rgba(0,0,0,0.5)", linestyle: ":", label: "Overbought" },
-                "stochrsi_oversold": { value: 20, color: "rgba(0,0,0,0.5)", linestyle: ":", label: "Oversold" },
+            "stochRSI": {
+                "stochk": { color: "#6366f1", linestyle: "-", label: "Stoch K" },
+                "stochd": { color: "#ef4444", linestyle: "--", label: "Stoch D" },
+                "overbought": { value: 80, color: "rgba(239, 68, 68, 0.5)", linestyle: ":", label: "80" },
+                "oversold": { value: 20, color: "rgba(16, 185, 129, 0.5)", linestyle: ":", label: "20" },
             }
         }
     },
@@ -88,8 +89,12 @@ const DUMMY_STRATEGIES = [
         name: 'Разворот RSI',
         description: 'Контртрендовая стратегия, выявляющая условия перепроданности/перекупленности на основных ликвидных парах.',
         symbols: ['SOLUSDT', 'ARBUSDT'],
+        timeframes: "15min",
         indicators: {
             "main": {},
+            "volume": {
+                "volume": { color: "rgba(156, 163, 175, 0.4)", linestyle: "histogram", label: "Volume" },
+            },
             "stochRSI": {
                 "rsi": { color: "#6366f1", label: "RSI" },
                 "rsi_70": { value: 70, color: "rgba(239, 68, 68, 0.5)", linestyle: ":", label: "70" },
@@ -102,11 +107,15 @@ const DUMMY_STRATEGIES = [
         name: 'Пересечение EMA 50/200',
         description: 'Классическая трендовая стратегия, использующая пересечение экспоненциальных скользящих средних.',
         symbols: ['BTCUSDT', 'BNBUSDT'],
+        timeframes: "1h",
         indicators: {
             "main": {
                 "ema_50": { color: "#3b82f6", label: "EMA 50" },
                 "ema_200": { color: "#ef4444", label: "EMA 200" }
-            }
+            },
+            "volume": {
+                "volume": { color: "rgba(156, 163, 175, 0.4)", linestyle: "histogram", label: "Volume" },
+            },
         }
     }
 ];
@@ -242,13 +251,13 @@ function generateDummyCandles() {
                 st_trend: trend,
                 highex: i % 40 === 0 ? high + 50 : undefined,
                 lowex: i % 45 === 0 ? low - 50 : undefined,
-                volsma: 40 + Math.random() * 20,
+                volume_sma: 40 + Math.random() * 20,
                 natr: 1 + Math.random(),
                 stochk: rsi,
                 stochd: rsi * 0.9 + 5,
                 rsi: rsi,
-                ema50: sma * 1.2,
-                ema200: sma * 0.9 + close * 0.1,
+                ema_50: sma * 1.2,
+                ema_200: sma * 0.9 + close * 0.1,
             } as any
         });
         lastClose = close;
@@ -266,8 +275,8 @@ export const viewMode = writable<'watchlist' | 'chart'>('watchlist');
 export const showMobileSidebar = writable<boolean>(false);
 export const desktopInspectorOpen = writable<boolean>(true);
 
-const API_URL = 'http://localhost:8000';
-const WS_URL = 'ws://localhost:8000';
+const API_URL = 'http://localhost:6060';
+const WS_URL = 'ws://localhost:6060';
 
 let socket: WebSocket | null = null;
 
@@ -330,7 +339,7 @@ export async function fetchInstruments() {
 
 export async function fetchCandles(strategyId: string, symbol: string) {
     try {
-        const response = await fetch(`${API_URL}/strategies/${strategyId}/candles/${symbol}/1h`);
+        const response = await fetch(`${API_URL}/strategies/${strategyId}/candles/${symbol}/5?limit=1000`);
         if (!response.ok) return generateDummyCandles();
         return await response.json();
     } catch (e) {
@@ -386,6 +395,9 @@ export function initWebSocket(strategyId: string) {
                 ));
             } else if (msg.type === 'update') {
                 fetchInstruments();
+                if (msg.event === 'StrategyMetadataUpdateEvent') {
+                    fetchStrategies();
+                }
                 window.dispatchEvent(new CustomEvent('ws_message', { detail: msg }));
             } else if (msg.type === 'candle_update') {
                 window.dispatchEvent(new CustomEvent('ws_message', { detail: msg }));

@@ -87,10 +87,30 @@ class AggregateService:
         if order:
             await self.check_order_fill(strategy_id, symbol, order, data)
 
-        # 2. Check open positions (TP/SL)
+        # 2. Check open positions (TP/SL and PnL)
         pos = self._get_position(strategy_id, symbol)
         if pos:
+            # Update unrealised PnL
+            side_mult = 1 if pos['side'] == "LONG" else -1
+            pos['unrealised_pnl'] = (close - pos['entry_price']) * pos['size'] * side_mult
+            
+            # Check for exits
             await self.check_position_exit(strategy_id, symbol, pos, data)
+            
+            # If still open, broadcast update
+            if symbol in self.positions.get(strategy_id, {}):
+                event = PositionStateEvent(
+                    strategy_id=strategy_id,
+                    symbol=symbol,
+                    side=pos['side'],
+                    size=pos['size'],
+                    entry_price=pos['entry_price'],
+                    unrealised_pnl=pos['unrealised_pnl'],
+                    stop_loss=pos.get('stop_loss'),
+                    take_profit=pos.get('take_profit')
+                )
+                self._publish_event(event)
+                self._sync_state_to_redis(strategy_id, symbol, "positions", pos)
 
     async def check_order_fill(self, strategy_id: str, symbol: str, order: dict, candle: dict):
         price = order.get('price')

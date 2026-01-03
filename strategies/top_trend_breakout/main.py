@@ -39,6 +39,7 @@ try:
         StrategySignalEvent,
         CandleUpdateEvent,
         StrategyMetadata,
+        StrategyMetadataUpdateEvent,
         get_meta_key,
         get_candles_key,
         CH_STRATEGY_EVENTS
@@ -53,6 +54,7 @@ except ImportError:
         StrategySignalEvent,
         CandleUpdateEvent,
         StrategyMetadata,
+        StrategyMetadataUpdateEvent,
         get_meta_key,
         get_candles_key,
         CH_STRATEGY_EVENTS
@@ -366,8 +368,18 @@ class TopTrendBreakOut:
         # 4. Вспомогательные индикаторы: ROC (Momentum), VolSMA (сглаживание объема), VWAP (якорь дня)
         try:
             df["ROC"] = ta.roc(df["close"], length=self.rsi_period)
-            df["VolSMA"] = ta.sma(df["volume"], length=50)
+            df["volume_sma"] = ta.sma(df["volume"], length=50) # Matching config name
             df["VWAP"] = ta.vwap(df["high"], df["low"], df["close"], df["volume"], anchor="D")
+        except:
+            pass
+            
+        # 5. Экстремумы (маркеры)
+        try:
+            max_high_indices, min_low_indices = self.indicators.find_stoch_extrema(df)
+            df["highex"] = np.nan
+            df["lowex"] = np.nan
+            df.loc[max_high_indices, "highex"] = df.loc[max_high_indices, "high"]
+            df.loc[min_low_indices, "lowex"] = df.loc[min_low_indices, "low"]
         except:
             pass
 
@@ -418,10 +430,14 @@ class TopTrendBreakOut:
             indicators_data = {
                 "st_trend": float(last_kline.get("st_trend", 0)),
                 "st_dir": float(last_kline.get("st_dir", 0)),
-                "stochK": float(last_kline.get("stochK", 0)),
-                "stochD": float(last_kline.get("stochD", 0)),
+                "stochk": float(last_kline.get("stochK", 0)), # Normalized to lowercase for config matching
+                "stochd": float(last_kline.get("stochD", 0)),
                 "ROC": float(last_kline.get("ROC", 0)),
-                "VWAP": float(last_kline.get("VWAP", 0))
+                "VWAP": float(last_kline.get("VWAP", 0)),
+                "natr": float(last_kline.get("natr", 0)),
+                "volume_sma": float(last_kline.get("volume_sma", 0)),
+                "highex": float(last_kline["highex"]) if not pd.isna(last_kline.get("highex")) else None,
+                "lowex": float(last_kline["lowex"]) if not pd.isna(last_kline.get("lowex")) else None
             }
             
             # Создаем событие для Redis Pub/Sub (его поймает API и WebSocket)
@@ -441,7 +457,7 @@ class TopTrendBreakOut:
             # 2. Сохраняем в Redis List для мгновенного доступа фронтенда к истории последних свечей
             r_key = get_candles_key(self.strategy_id, symbol, interval)
             self.bus.redis.rpush(r_key, event.json())
-            self.bus.redis.ltrim(r_key, -200, -1) # Храним только последние 200 свечей
+            self.bus.redis.ltrim(r_key, -1000, -1) # Храним последние 1000 свечей
             
             # 3. Публикуем событие в шину. На это событие реагирует агрегатор для проверки ордеров.
             self.bus.publish(CH_STRATEGY_EVENTS, event.dict())
@@ -465,6 +481,7 @@ class TopTrendBreakOut:
 
             active = set(self.positions.keys()) | set(self.active_orders.keys())
             self.working_symbols = set(top_symbols) | active
+            indicators_config = TestDataProvider.get_test_indicators_for_plotting()
             
             # --- Сохранение метаданных в Redis ---
             meta = StrategyMetadata(
@@ -473,16 +490,12 @@ class TopTrendBreakOut:
                 description="SuperTrend + Struktur Breakout Strategy",
                 symbols=list(self.working_symbols),
                 timeframes=[str(self.klines_interval)],
-                indicators_config={
-                    "rsi_period": self.rsi_period,
-                    "st_multiplier": 2.5
-                },
+                indicators=indicators_config,
                 custom_settings={
                     "risk_percent": self.risk_percent,
                     "leverage": self.leverage
                 }
             )
-            
             # Ключ: strategy:{id}:meta
             meta_key = get_meta_key(self.strategy_id)
             # Сохраняем как Hash (плоский словарь)
@@ -493,6 +506,13 @@ class TopTrendBreakOut:
                     meta_dict[k] = json.dumps(v)
             
             self.bus.redis.hset(meta_key, mapping=meta_dict)
+            
+            # Публикуем событие об обновлении метаданных
+            update_event = StrategyMetadataUpdateEvent(
+                strategy_id=self.strategy_id,
+                metadata=meta.dict()
+            )
+            self.bus.publish(CH_STRATEGY_EVENTS, update_event.dict())
             
             logger.info(f"Активные символы ({len(self.working_symbols)}): {self.working_symbols}")
 
@@ -584,3 +604,8 @@ class TopTrendBreakOut:
                 time.sleep(5)
             
             time.sleep(1)
+
+
+if __name__ == "__main__":
+    strategy = TopTrendBreakOut()
+    strategy.start()

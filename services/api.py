@@ -74,7 +74,7 @@ def list_strategies():
         meta = r.hgetall(key)
         if meta:
             # Parse bit-encoded/json fields
-            for field in ['symbols', 'timeframes', 'indicators_config', 'custom_settings']:
+            for field in ['symbols', 'timeframes', 'indicators', 'custom_settings']:
                 if field in meta:
                     try:
                         meta[field] = json.loads(meta[field])
@@ -142,7 +142,7 @@ def list_instruments():
     return list(instruments_map.values())
 
 @app.get("/strategies/{strategy_id}/candles/{symbol}/{tf}")
-def get_historical_candles(strategy_id: str, symbol: str, tf: str, limit: int = 100):
+def get_historical_candles(strategy_id: str, symbol: str, tf: str, limit: int = 1000):
     key = get_candles_key(strategy_id, symbol, tf)
     # Candles are stored as a list of JSON strings in Redis
     candles_raw = r.lrange(key, -limit, -1)
@@ -186,7 +186,7 @@ async def redis_listener():
                     # Отправляем полную свечу только подписанным на график
                     await notify_candle_update(strategy_id, symbol, data)
                 
-                elif event_type in ["OrderExecutionEvent", "PositionStateEvent", "TradeTerminalEvent"]:
+                elif event_type in ["OrderExecutionEvent", "PositionStateEvent", "TradeTerminalEvent", "StrategyMetadataUpdateEvent"]:
                     # Глобальное обновление для всех клиентов (обновить статусы)
                     await manager.broadcast_all({
                         "type": "update",
@@ -244,4 +244,4 @@ async def startup_event():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=6060)

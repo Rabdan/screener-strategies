@@ -1,7 +1,7 @@
 pybit
 redis
 pydantic
-pandas
-numpy
-lightweight-charts
-pandas-ta
+setuptools
+numpy==2.2.6
+pandas==2.3.2
+pandas-ta.tar.gz
